@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!--
+    ===========================================================
+    DIJK VAN EEN WIJF — VOICE TOUR (ElevenLabs widget) + CONSENT GATE
+    ===========================================================
+    ADDITIONS
+    - Full white-screen consent overlay shown on page load.
+    - "Yes" → hide overlay, unlock scroll, dynamically load ElevenLabs widget script, rest functions as normal.
+    - "No"  → send user back (history.back). If no history, fall back to a safe external page.
+
+    NOTE
+    - We defer loading the ElevenLabs script until consent is granted.
+    - The rest of the original file is preserved.
+  -->
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Virtual Tour – Dijk van een Wijf</title>
+
+  <!-- ------------------------- BASIC STYLES (replace freely) ------------------------- -->
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background: url('background.jpg') center/cover no-repeat fixed;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Circular Std', sans-serif;
+      position: relative; overflow: hidden; /* locked until consent */
+    }
+    #wordmark {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 20px);
+      right: 20px;
+      width: 200px; opacity: 0.9; z-index: 20;
+    }
+    #welcomeOverlay {
+      position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+      color: #fff; text-align: center; padding: 0 2rem;
+      z-index: 19; pointer-events: none; opacity: 1;
+      text-shadow: 0 0 6px rgba(0,0,0,0.5); transition: opacity 0.5s ease;
+    }
+    #welcomeOverlay h1 { font: 700 1.5rem 'Circular Std', sans-serif; margin: 0 0 0.5em; }
+    #welcomeOverlay p { font: 400 1rem 'Circular Std', sans-serif; margin: 0; }
+
+    #startOptions {
+      position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
+      left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 1rem;
+      z-index: 20; transition: opacity 0.5s ease;
+    }
+    #startOptions button {
+      width: 80vw; max-width: 12rem; padding: 1em;
+      background: rgba(255,255,255,0.6); color: #1D1D1B;
+      border: 2px solid #EE7440; border-radius: 32px;
+      font: 700 1rem/1.2 'Circular Std', sans-serif; text-align: center; cursor: pointer;
+      transition: background 0.2s, transform 0.2s; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    #startOptions button:hover { background: rgba(238,116,64,0.8); transform: scale(1.05); }
+    #startOptions button:active { background: #EE7440; color: #fff; }
+
+    #startOptions.hidden, #welcomeOverlay.hidden { display: none; }
+    #startOptions.fadeOut, #welcomeOverlay.fadeOut { opacity: 0; }
+
+    #skipIntro {
+      position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
+      left: 50%; transform: translateX(-50%);
+      width: 80vw; max-width: 12rem; padding: 1em;
+      background: rgba(255,255,255,0.6); color: #1D1D1B;
+      border: 2px solid #EE7440; border-radius: 32px;
+      font: 700 1rem/1.2 'Circular Std', sans-serif; text-align: center; cursor: pointer;
+      transition: background 0.2s, transform 0.2s; box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 21;
+    }
+    #skipIntro.hidden { display: none; }
+    #skipIntro:hover { background: rgba(238,116,64,0.8); transform: scale(1.05); }
+    #skipIntro:active { background: #EE7440; color: #fff; }
+
+    #mainContent { display: flex; flex-direction: column; align-items: center; gap: 1rem; z-index: 10; }
+    #widgetContainer { width: 90vw; max-width: 600px; }
+
+    /* Optional: Android-only tip banner (remove if not desired) */
+    #androidHint {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.75); color: #fff; padding: 10px 14px; border-radius: 12px;
+      font: 600 12px/1.2 'Circular Std', sans-serif; z-index: 9999; display: none;
+    }
+    #androidHint button {
+      margin-left: 10px; border: none; background: #EE7440; color: #fff;
+      border-radius: 10px; padding: 6px 10px; font-weight: 700; cursor: pointer;
+    }
+
+    /* ================= CONSENT OVERLAY (FULL WHITE SCREEN) ================= */
+    #consentOverlay {
+      position: fixed;
+      inset: 0;
+      background: #fff; /* full white */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999; /* above everything */
+    }
+    #consentBox {
+      width: min(92vw, 520px);
+      border: 2px solid #1D1D1B;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+      padding: 24px 22px;
+      text-align: center;
+      color: #1D1D1B;
+      font-family: 'Circular Std', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    #consentBox h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+    #consentBox p {
+      margin: 0 0 18px;
+      font-size: 15px;
+      line-height: 1.45;
+      opacity: 0.85;
+    }
+    .consentButtons {
+      display: flex; gap: 12px; justify-content: center; align-items: center;
+      margin-top: 6px;
+    }
+    .consentButtons button {
+      flex: 1 1 auto;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 2px solid transparent;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    #consentYes { background: #EE7440; color: #fff; }
+    #consentYes:hover { filter: brightness(0.95); }
+    #consentNo  { background: #f2f2f2; color: #1D1D1B; border-color: #ddd; }
+    #consentNo:hover  { background: #e9e9e9; }
+  </style>
+</head>
+<body>
+  <!-- ========================= CONSENT GATE ========================= -->
+  <div id="consentOverlay" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+    <div id="consentBox">
+      <h2 id="consentTitle">Permissions Required</h2>
+      <p>
+        This tour uses cookies and the ElevenLabs conversational widget (microphone access may be requested).<br>
+        Do you accept to continue?
+      </p>
+      <div class="consentButtons">
+        <button id="consentYes" aria-label="Accept and continue">Yes</button>
+        <button id="consentNo" aria-label="Decline and go back">No</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ------------------------- SWAPPABLE UI CONTENT ------------------------- -->
+  <img id="wordmark" src="Dijk_van_een_Wijf_Logo.png" alt="Dijk van een Wijf">
+
+  <div id="welcomeOverlay">
+    <!-- Optional marketing copy / heading can go here -->
+  </div>
+
+  <!-- Language selection (IDs/attributes used by JS; you can restyle/replace markup) -->
+  <div id="startOptions">
+    <button data-agent="agent_01jykbe73efcma2nva2xmhzqfh" data-lang="EN">Start Tour<br>English</button>
+    <button data-agent="agent_01jxj6kx8cezesfxrsdxcjxx30" data-lang="NL">Rondleiding Starten<br>Dutch</button>
+    <button data-agent="agent_01jxj6kx8cezesfxrsdxcjxx30" data-lang="FR">Rondleiding Starten<br>Frisian</button>
+  </div>
+
+  <button id="skipIntro" class="hidden">Skip Intro</button>
+
+  <div id="mainContent">
+    <!-- The ElevenLabs widget will be injected here -->
+    <div id="widgetContainer"></div>
+  </div>
+
+  <!-- Optional Android hint (explain how to avoid HFP/SCO “phone call” audio) -->
+  <div id="androidHint">
+    Sound robotic? Turn Bluetooth off or disable “Phone calls” for your headset, then try again.
+    <button id="androidHintClose">OK</button>
+  </div>
+
+  <!-- Two audio elements:
+       - bgAudio   : looping seasonal soundscape (gain: BG_VOLUME)
+       - introAudio: used for Part 1 and Part 2 voiceover (gain: AI_VOLUME) -->
+  <audio id="bgAudio" loop preload="auto" playsinline webkit-playsinline></audio>
+  <audio id="introAudio" preload="auto" playsinline webkit-playsinline></audio>
+
+  <!-- We will dynamically load the ElevenLabs embed script AFTER consent:
+       <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script> -->
+
+  <!-- ------------------------- AUDIO HELPERS: gain ramp + duck/unduck ------------------------- -->
+  <script>
+    /**
+     * Smoothly ramp a GainNode to a target value over (ms) milliseconds.
+     */
+    function rampGain(gainNode, target, ms = 200) {
+      try {
+        const ctx = gainNode.context, now = ctx.currentTime, dur = Math.max(ms/1000, 0.01);
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+        gainNode.gain.linearRampToValueAtTime(target, now + dur);
+      } catch (e) {}
+    }
+
+    // Briefly lower both bg + intro gains, then restore. Masks iOS “stutter” when WebRTC starts.
+    function duckAll(ms = 180) {
+      if (window.bgGainNode) rampGain(window.bgGainNode, 0.05, ms);
+      if (window.aiGainNode) rampGain(window.aiGainNode, 0.05, ms);
+    }
+    function unduckAll(ms = 380) {
+      if (window.bgGainNode) rampGain(window.bgGainNode, BG_VOLUME, ms);
+      if (window.aiGainNode) rampGain(window.aiGainNode, AI_VOLUME, ms);
+    }
+  </script>
+
+  <!-- ------------------------- APP LOGIC ------------------------- -->
+  <script>
+    /* ========= Platform detection ========= */
+    const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const IS_ANDROID = /Android/i.test(navigator.userAgent);
+
+    /* ========= Mix levels (tweakable) ========= */
+    const BG_VOLUME = 0.20;
+    const AI_VOLUME = IS_ANDROID ? 1.25 : 1.0;
+
+    /* ========= Media files ========= */
+    const introTracksPart1 = {
+      EN: 'DveW_Intro_EN_2 (silent intro).mp3',
+      NL: 'DveW_Intro_NL_2 (silent intro).mp3',
+      FR: 'DveW_Intro_FR_2 (silent intro).mp3'
+    };
+    const introTracksPart2 = {
+      EN: 'Dijk van een Wijf - Introtext EN_1.2.mp3',
+      NL: 'Dijk van een Wijf - Introtext NL_1.2.mp3',
+      FR: 'Dijk van een Wijf - Introtext FR_1.2.mp3'
+    };
+
+    const skipTexts = { EN: 'Skip Intro', NL: 'Intro overslaan', FR: "Passer l'intro" };
+
+    const tracks = [
+      'Soundscapes - Lente - Dijk van een Wijf V2.mp3',
+      'Soundscapes - Zommer - Dijk van een Wijf V2.mp3',
+      'Soundscapes - Herfst - Dijk van een Wijf V2.mp3',
+      'Soundscapes - Winter - Dijk van een Wijf V2.mp3'
+    ];
+
+    // DOM references
+    let currentTrack = 0;
+    const bgAudio       = document.getElementById('bgAudio');
+    const introAudio    = document.getElementById('introAudio');
+    const startOptions  = document.getElementById('startOptions');
+    const widgetContainer = document.getElementById('widgetContainer');
+    const welcomeOverlay  = document.getElementById('welcomeOverlay');
+    const skipIntro       = document.getElementById('skipIntro');
+    const androidHint     = document.getElementById('androidHint');
+    const androidHintClose= document.getElementById('androidHintClose');
+
+    if (androidHintClose) {
+      androidHintClose.addEventListener('click', () => androidHint.style.display = 'none');
+    }
+
+    // Web Audio graph (shared across the page):
+    // bgAudio -> bgGainNode -> AudioContext.destination
+    // introAudio -> aiGainNode -> AudioContext.destination
+    let audioCtx, bgGainNode, aiGainNode;
+
+    function playTrack(idx) {
+      bgAudio.src = tracks[idx];
+      bgAudio.load();
+      bgAudio.play().catch(e => console.warn('bgAudio play error:', e));
+    }
+
+    function enhanceWidget(alpha = 0.6) {
+      const iv = setInterval(() => {
+        const iframe = document.querySelector('iframe');
+        if (!iframe) return;
+        try {
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          const pane = doc.querySelector('[class*="Container"]');
+          const btn  = doc.querySelector('button');
+          if (pane) {
+            pane.style.backdropFilter = 'blur(8px)';
+            pane.style.background = `rgba(255,255,255,${alpha})`;
+          }
+          if (btn && btn.innerText.toLowerCase().includes('begin')) {
+            btn.click();
+            clearInterval(iv);
+          }
+        } catch (e) {}
+      }, 200);
+    }
+
+    function rampGainSlow(gainNode, target, ms = 400) {
+      try {
+        const ctx = gainNode.context, now = ctx.currentTime, dur = Math.max(ms/1000, 0.01);
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+        gainNode.gain.linearRampToValueAtTime(target, now + dur);
+      } catch (e) {}
+    }
+
+    skipIntro.addEventListener('click', () => {
+      introAudio.pause();
+      if (introAudio.onended) introAudio.onended();
+    });
+
+    // ========================== CONSENT FLOW ==========================
+    const consentOverlay = document.getElementById('consentOverlay');
+    const consentYes = document.getElementById('consentYes');
+    const consentNo  = document.getElementById('consentNo');
+
+    // Ensure page interactions are blocked until consent (CSS overflow hidden already set on body)
+    function grantConsent() {
+      // Hide overlay
+      consentOverlay.style.display = 'none';
+      // Unlock scroll
+      document.documentElement.style.overflow = 'auto';
+      document.body.style.overflow = 'auto';
+
+      // Dynamically load the ElevenLabs web component only after consent
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
+      s.async = true;
+      document.head.appendChild(s);
+    }
+
+    function declineConsent() {
+      // If there's a history to go back to, use it; otherwise go to a neutral page
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.replace('https://sense-of-place.eu/');
+      }
+    }
+
+    consentYes.addEventListener('click', grantConsent);
+    consentNo.addEventListener('click', declineConsent);
+
+    // ========================== MAIN ENTRY: Language selection ==========================
+    startOptions.querySelectorAll('button').forEach(button => {
+      button.addEventListener('click', () => {
+        const agentId   = button.dataset.agent;     // ElevenLabs Agent ID (different per language)
+        const lang      = button.dataset.lang;      // EN / NL / FR
+        const introFile1= introTracksPart1[lang];   // VO part 1
+        const introFile2= introTracksPart2[lang];   // VO part 2
+
+        // Visual feedback on selected button
+        button.style.background = '#EE7440';
+        button.style.color = '#fff';
+
+        // 1) Initialize audio graph on first interaction (required for iOS autoplay policies)
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          bgGainNode = audioCtx.createGain();
+          aiGainNode = audioCtx.createGain();
+
+          bgGainNode.gain.value = BG_VOLUME; // bed level
+          aiGainNode.gain.value = AI_VOLUME; // intro/widget level (Android gets slight lift)
+
+          const src1 = audioCtx.createMediaElementSource(bgAudio);
+          const src2 = audioCtx.createMediaElementSource(introAudio);
+          src1.connect(bgGainNode).connect(audioCtx.destination);
+          src2.connect(aiGainNode).connect(audioCtx.destination);
+
+          // Expose for helpers
+          window.audioCtx   = audioCtx;
+          window.bgGainNode = bgGainNode;
+          window.aiGainNode = aiGainNode;
+        }
+
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(e => console.warn('AudioContext resume error:', e));
+        }
+
+        // 2) Start background bed immediately (based on current month)
+        const month = new Date().getMonth();
+        let seasonIndex = (month>=2&&month<=4)?0:(month>=5&&month<=7)?1:(month>=8&&month<=10)?2:3;
+        currentTrack = seasonIndex;
+        playTrack(currentTrack);
+
+        // 3) Start VO Part 1 immediately
+        introAudio.src = introFile1;
+        introAudio.load();
+        introAudio.play().catch(err => console.warn("Intro play error:", err));
+
+        // 4) Mic permission timing:
+        if (!IS_ANDROID) {
+          setTimeout(() => {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+              .then(stream => { window._persistentMicStream = stream; })
+              .catch(err => { console.warn('Microphone access denied or error:', err); });
+          }, 0);
+        }
+
+        // 5) UI fades
+        setTimeout(() => {
+          startOptions.style.pointerEvents = 'none';
+          welcomeOverlay.classList.add('fadeOut');
+          startOptions.classList.add('fadeOut');
+        }, 100);
+
+        skipIntro.textContent = skipTexts[lang];
+        setTimeout(() => { skipIntro.classList.remove('hidden'); }, 500);
+
+        // 6) When VO Part 1 ends → mount the widget + start VO Part 2 with timed bg fades
+        const finishIntro = () => {
+          startOptions.classList.add('hidden');
+          welcomeOverlay.classList.add('hidden');
+          skipIntro.classList.add('hidden');
+
+          // --- Mask iOS route switch with a tiny crossfade ---
+          duckAll(180);
+          // Mount ElevenLabs widget. Keep this exact custom element; just swap agent-id if needed.
+          widgetContainer.innerHTML = `<elevenlabs-convai agent-id="${agentId}"></elevenlabs-convai>`;
+
+          // ANDROID-ONLY: After route establishes, add a gentle extra lift + optional hint.
+          if (IS_ANDROID) {
+            setTimeout(() => {
+              try {
+                if (window.aiGainNode) {
+                  const extraBoost = 1.2; // total ~1.25 * 1.2 ≈ 1.5x vs iPhone base
+                  window.aiGainNode.gain.value = AI_VOLUME * extraBoost;
+                }
+                if (androidHint) androidHint.style.display = 'block';
+              } catch(e){}
+            }, 700);
+          }
+
+          // Restore normal levels after the duck
+          setTimeout(() => { unduckAll(480); }, 550);
+
+          // Cosmetic adjustments inside the widget iframe (safe no-op if selectors change)
+          enhanceWidget();
+
+          // --- Start VO Part 2 ---
+          introAudio.onended = null;
+          introAudio.src = introFile2;
+          introAudio.load();
+          introAudio.play().then(() => {
+            // Background fade choreography during Part 2
+            setTimeout(() => { if (bgGainNode) rampGainSlow(bgGainNode, 0.0, 1500); }, 4500);
+            setTimeout(() => { if (bgGainNode) rampGainSlow(bgGainNode, BG_VOLUME, 1500); }, 8500);
+          }).catch(err => console.warn("Second intro play error:", err));
+
+          // Ensure bed stays alive if some devices auto-pause it
+          if (bgAudio.paused) {
+            bgAudio.play().catch(e => console.warn('bgAudio play error:', e));
+          }
+        };
+
+        introAudio.onended = finishIntro;
+      });
+    });
+  </script>
+</body>
+</html>

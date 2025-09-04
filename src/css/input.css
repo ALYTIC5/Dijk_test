@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+@import "tailwindcss";
+@import "./../css/partials/icomoon.css";
+@import "./../css/partials/button.css";
+
+@font-face {
+    font-family: "Open Sans", sans-serif;
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+    font-optical-sizing: auto;
+}
+
+@theme {
+    --font-display: 'Open Sans', Arial, sans-serif;
+    --color-black-default: rgba(29,29,27,1);
+    --color-black-500: rgba(50,50,50,1);
+    --color-white: rgba(255,255,255,1);
+    --color-orange: rgba(255,105,38,1);
+    --container-sm: 392px;
+    --tracking-tight: -0.01em;
+}
+@layer base {
+    html {
+        height: theme('height.full');
+        background-color: var(--color-white);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        font-size: theme('fontSize.base');
+        font-weight: theme('fontWeight.medium');
+        font-family: var(--font-display);
+        color: var(--color-black-default);
+        position: relative;
+        box-sizing: border-box;
+        overflow-x: hidden;
+        font-optical-sizing: auto;
+        font-style: normal;
+
+        &.page--conversation {
+            color: var(--color-white);
+        }
+    }
+
+    article {
+        position: relative;
+        background-image: url('../../assets/img/backgrounds/bg-orange-pattern.jpg');
+        background-size: cover;
+        background-color: var(--color-orange);
+        padding-top: theme('padding.8');
+        padding-bottom: theme('padding.4');
+        min-height: theme('height.svh');
+        overflow: hidden;
+
+        body.page--conversation & {
+            background-image: url('../../assets/img/backgrounds/bg-black-pattern.jpg');
+        }
+
+        body.page--conversation & {
+            display: flex;
+            justify-content: center;
+        }
+    }
+
+    section {
+        position: relative;
+    }
+
+    h1 {
+        font-size: 28px;
+        font-weight: theme('fontWeight.bold');
+        line-height: theme('leading.tight');
+        letter-spacing: theme('tracking.tight');
+        margin-bottom: theme('margin.4');
+    }
+
+    p {
+        margin-bottom: theme('margin.6');
+        letter-spacing: theme('tracking.tight');
+        line-height: theme('leading.relaxed');
+    }
+}
+
+
+@utility container {
+    padding-inline: theme('padding.8');
+    margin: 0 auto;
+    max-width: theme('maxWidth.sm');
+}

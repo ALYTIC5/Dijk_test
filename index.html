@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+	<meta charset="UTF-8"/>
+	<link rel="stylesheet" href="./src/css/style.css" media="all"/>
+	<title>Dijk van een Wijf | Verhalen en wijsheden over natuur en tijd</title>
+	<meta name="description" content="Ga in gesprek met het Wad en ontdek eeuwenoude verhalen, wijsheden over de natuur en inspirerende inzichten. Stel je vragen en laat je meenemen op een onvergetelijke reis door de tijd en natuur."/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
+	<link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
+	<link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
+</head>
+<body class="page page--home">
+<main>
+	<article>
+		<section>
+			<div class="relative container pt-8 pb-14 mb-10 z-10">
+				<div class="relative">
+					<div class="relative z-10">
+						<div class="flex justify-between items-center">
+							<a href="/introduction.html">
+								<figure>
+									<img src="./assets/img/dijk-van-een-wijf-logo.png" alt="Ga naar de homepagina">
+								</figure>
+							</a>
+						</div>
+						<h1>Ontdek het Wad.</h1>
+						<p class="font-semibold text-pretty">Hier, aan de voet van Dijk van een Wijf, start jouw reis. Luister naar de introductie en ga daarna in gesprek met het Wad.</p>
+						<p class="text-pretty">Via de microfoon van je telefoon kun je al je vragen stellen; over het kunstwerk, over het Wad, de planten en dieren. Laat je meevoeren in alle, soms eeuwenoude, verhalen van dit unieke gebied.</p>
+						<a href="/introduction.html" class="btn btn--headset group" title="Luister naar het Wad">
+							<span>Luister naar het Wad</span>
+							<i class="icon-headset text-[22px] group-hover:ml-2"></i>
+						</a>
+					</div>
+				</div>
+			</div>
+
+			<div class="container">
+				<div class="flex flex-col items-start gap-2.5">
+					<a href="/introduction_en.html" class="btn btn--white btn--small" title="Listen to the Wad">
+						<figure class="size-5 rounded-full overflow-hidden grayscale">
+							<img class="w-full h-full object-cover object-center" src="./assets/img/united-kingdom-flag-icon.svg" alt="Engelse vlag"/>
+						</figure>
+						<span>Listen to the Wad</span>
+						<i class="icon-headset"></i>
+					</a>
+					<a href="/introduction_fy.html" class="btn btn--white btn--small" title="Harkje nei it Waad">
+						<i class="icon-fryslan"></i>
+						<span>Harkje nei it Waad</span>
+						<i class="icon-headset"></i>
+					</a>
+				</div>
+			</div>
+		</section>
+		<div class="absolute bg-cover right-1/2 top-5 -translate-x-1/2 bg-[url(../../assets/img/backgrounds/bg-white-blob.svg)] bg-no-repeat w-[720px] left-[calc(28%)] sm:left-[calc(49%)] sm:w-[500px] h-[636px]"></div>
+	</article>
+</main>
+
+<!-- Seasonal background audio -->
+<audio id="bgAudio" loop preload="auto" playsinline></audio>
+<script>
+  const tracks = [
+    "Soundscapes - Lente - Dijk van een Wijf V2.mp3",
+    "Soundscapes - Zommer - Dijk van een Wijf V2.mp3",
+    "Soundscapes - Herfst - Dijk van een Wijf V2.mp3",
+    "Soundscapes - Winter - Dijk van een Wijf V2.mp3"
+  ];
+  const month = new Date().getMonth();
+  const seasonIndex = (month>=2&&month<=4)?0:(month>=5&&month<=7)?1:(month>=8&&month<=10)?2:3;
+  const bgAudio = document.getElementById("bgAudio");
+
+  // Web Audio API for volume control
+  let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  let bgGainNode = audioCtx.createGain();
+  bgGainNode.gain.value = 0.20; // 20% volume
+
+  const source = audioCtx.createMediaElementSource(bgAudio);
+  source.connect(bgGainNode).connect(audioCtx.destination);
+
+  bgAudio.src = tracks[seasonIndex];
+  bgAudio.load();
+
+  // Autoplay policies → must start after user interaction on some devices
+  document.addEventListener("click", () => {
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+    bgAudio.play().catch(()=>{});
+  }, { once: true });
+</script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Voice Tour</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;}
+    #consentOverlay{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:99999}
+    #skipIntro.hidden{display:none}
+  </style>
+</head>
+<body>
+  <!-- Consent (white screen) -->
+  <div id="consentOverlay" role="dialog" aria-modal="true">
+    <div>
+      <h2>Permissions Required</h2>
+      <p>This tour uses cookies and the ElevenLabs conversational widget (may request microphone). Continue?</p>
+      <button id="consentYes">Yes</button>
+      <button id="consentNo">No</button>
+    </div>
+  </div>
+
+  <!-- Minimal UI: language buttons + widget mount -->
+  <div id="startOptions">
+    <button data-agent="agent_01jykbe73efcma2nva2xmhzqfh" data-lang="EN">Start (EN)</button>
+    <button data-agent="agent_01jxj6kx8cezesfxrsdxcjxx30" data-lang="NL">Start (NL)</button>
+    <button data-agent="agent_01jxj6kx8cezesfxrsdxcjxx30" data-lang="FR">Start (FR)</button>
+  </div>
+
+  <button id="skipIntro" class="hidden">Skip Intro</button>
+  <div id="widgetContainer"></div>
+
+  <!-- Android hint (optional) -->
+  <div id="androidHint" style="display:none;">
+    Sound robotic? Turn Bluetooth off or disable "Phone calls" for the headset.
+    <button id="androidHintClose">OK</button>
+  </div>
+
+  <!-- Audio elements -->
+  <audio id="bgAudio" loop preload="auto" playsinline></audio>
+  <audio id="introAudio" preload="auto" playsinline></audio>
+
+  <script>
+    // ===== Helpers: ramps/ducking =====
+    function rampGain(g,t,ms=200){try{const c=g.context,n=c.currentTime,d=Math.max(ms/1000,0.01);g.gain.cancelScheduledValues(n);g.gain.setValueAtTime(g.gain.value,n);g.gain.linearRampToValueAtTime(t,n+d);}catch{}}
+    function duckAll(ms=180){if(window.bgGainNode)rampGain(bgGainNode,0.05,ms);if(window.aiGainNode)rampGain(aiGainNode,0.05,ms);}
+    function unduckAll(ms=380){if(window.bgGainNode)rampGain(bgGainNode,BG_VOLUME,ms);if(window.aiGainNode)rampGain(aiGainNode,AI_VOLUME,ms);}
+
+    // ===== Platform + constants =====
+    const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    const IS_ANDROID = /Android/i.test(navigator.userAgent);
+    const BG_VOLUME = 0.20;
+    const AI_VOLUME = IS_ANDROID ? 1.25 : 1.0;
+
+    const introTracksPart1 = {
+      EN:'DveW_Intro_EN_2 (silent intro).mp3',
+      NL:'DveW_Intro_NL_2 (silent intro).mp3',
+      FR:'DveW_Intro_FR_2 (silent intro).mp3'
+    };
+    const introTracksPart2 = {
+      EN:'Dijk van een Wijf - Introtext EN_1.2.mp3',
+      NL:'Dijk van een Wijf - Introtext NL_1.2.mp3',
+      FR:'Dijk van een Wijf - Introtext FR_1.2.mp3'
+    };
+    const tracks = [
+      'Soundscapes - Lente - Dijk van een Wijf V2.mp3',
+      'Soundscapes - Zommer - Dijk van een Wijf V2.mp3',
+      'Soundscapes - Herfst - Dijk van een Wijf V2.mp3',
+      'Soundscapes - Winter - Dijk van een Wijf V2.mp3'
+    ];
+
+    // ===== DOM =====
+    const consentOverlay=document.getElementById('consentOverlay');
+    const consentYes=document.getElementById('consentYes');
+    const consentNo=document.getElementById('consentNo');
+    const startOptions=document.getElementById('startOptions');
+    const skipIntro=document.getElementById('skipIntro');
+    const widgetContainer=document.getElementById('widgetContainer');
+    const androidHint=document.getElementById('androidHint');
+    const androidHintClose=document.getElementById('androidHintClose');
+    const bgAudio=document.getElementById('bgAudio');
+    const introAudio=document.getElementById('introAudio');
+
+    if (androidHintClose){androidHintClose.addEventListener('click',()=>androidHint.style.display='none');}
+
+    // ===== Audio graph =====
+    let audioCtx,bgGainNode,aiGainNode;
+    function ensureAudioGraph(){
+      if (audioCtx) return;
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      bgGainNode=audioCtx.createGain(); aiGainNode=audioCtx.createGain();
+      bgGainNode.gain.value=BG_VOLUME; aiGainNode.gain.value=AI_VOLUME;
+      const s1=audioCtx.createMediaElementSource(bgAudio);
+      const s2=audioCtx.createMediaElementSource(introAudio);
+      s1.connect(bgGainNode).connect(audioCtx.destination);
+      s2.connect(aiGainNode).connect(audioCtx.destination);
+      window.bgGainNode=bgGainNode; window.aiGainNode=aiGainNode;
+    }
+
+    function playSeasonBed(){
+      const m=new Date().getMonth();
+      const idx=(m>=2&&m<=4)?0:(m>=5&&m<=7)?1:(m>=8&&m<=10)?2:3;
+      bgAudio.src=tracks[idx]; bgAudio.load(); bgAudio.play().catch(()=>{});
+    }
+
+    // ===== Consent =====
+    function grantConsent(){
+      consentOverlay.style.display='none';
+      document.documentElement.style.overflow='auto'; document.body.style.overflow='auto';
+      const s=document.createElement('script'); s.src='https://unpkg.com/@elevenlabs/convai-widget-embed'; s.async=true; document.head.appendChild(s);
+    }
+    function declineConsent(){
+      if (history.length>1) history.back(); else location.replace('about:blank');
+    }
+    consentYes.addEventListener('click',grantConsent);
+    consentNo.addEventListener('click',declineConsent);
+
+    // ===== Start flow =====
+    skipIntro.addEventListener('click',()=>{introAudio.pause(); if(introAudio.onended) introAudio.onended();});
+
+    startOptions.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const agentId=btn.dataset.agent;
+        const lang=btn.dataset.lang;
+        ensureAudioGraph();
+        if (audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
+
+        playSeasonBed();
+
+        introAudio.src=introTracksPart1[lang]; introAudio.load();
+        introAudio.play().catch(()=>{});
+
+        if (!IS_ANDROID){
+          setTimeout(()=>{navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{window._persistentMicStream=s;}).catch(()=>{});},0);
+        }
+
+        const finishIntro=()=>{
+          duckAll(180);
+          widgetContainer.innerHTML=`<elevenlabs-convai agent-id="${agentId}"></elevenlabs-convai>`;
+          if (IS_ANDROID){
+            setTimeout(()=>{try{if(window.aiGainNode) window.aiGainNode.gain.value=AI_VOLUME*1.2; androidHint.style.display='block';}catch{}},700);
+          }
+          setTimeout(()=>unduckAll(480),550);
+
+          introAudio.onended=null;
+          introAudio.src=introTracksPart2[lang]; introAudio.load();
+          introAudio.play().then(()=>{
+            setTimeout(()=>{if(bgGainNode) rampGain(bgGainNode,0.0,1500);},4500);
+            setTimeout(()=>{if(bgGainNode) rampGain(bgGainNode,BG_VOLUME,1500);},8500);
+          }).catch(()=>{});
+          if (bgAudio.paused){bgAudio.play().catch(()=>{});}
+        };
+        introAudio.onended=finishIntro;
+        skipIntro.classList.remove('hidden');
+      });
+    });
+  </script>
+</body>
+</html>
