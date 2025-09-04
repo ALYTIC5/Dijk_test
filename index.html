@@ -24,7 +24,7 @@
 				<div class="relative">
 					<div class="relative z-10">
 						<div class="flex justify-between items-center">
-							<a href="/introduction.html">
+							<a href="./introduction.html">
 								<figure>
 									<img src="./assets/img/dijk-van-een-wijf-logo.png" alt="Ga naar de homepagina">
 								</figure>
@@ -34,8 +34,9 @@
 						<p class="font-semibold text-pretty">Hier, aan de voet van Dijk van een Wijf, start jouw reis. Luister naar de introductie en ga daarna in gesprek met het Wad.</p>
 						<p class="text-pretty">Via de microfoon van je telefoon kun je al je vragen stellen; over het kunstwerk, over het Wad, de planten en dieren. Laat je meevoeren in alle, soms eeuwenoude, verhalen
 							van dit unieke gebied.</p>
-						<!-- Changed to button-like link we intercept to start audio + load intro content -->
-						<a href="/introduction.html" id="btn-nl" class="btn btn--headset group" title="Luister naar het Wad">
+
+						<!-- NL primary CTA (we intercept this to start audio + SPA to keep bed playing) -->
+						<a href="./introduction.html" id="btn-nl" class="btn btn--headset group" title="Luister naar het Wad">
 							<span>Luister naar het Wad</span>
 							<i class="icon-headset text-[22px] group-hover:ml-2"></i>
 						</a>
@@ -45,14 +46,14 @@
 
 			<div class="container">
 				<div class="flex flex-col items-start gap-2.5">
-					<a href="/introduction_en.html" class="btn btn--white btn--small" title="Listen to the Wad">
+					<a href="./introduction_en.html" id="btn-en" class="btn btn--white btn--small" title="Listen to the Wad">
 						<figure class="size-5 rounded-full overflow-hidden grayscale">
 							<img class="w-full h-full object-cover object-center" src="./assets/img/united-kingdom-flag-icon.svg" alt="Engelse vlag"/>
 						</figure>
 						<span>Listen to the Wad</span>
 						<i class="icon-headset"></i>
 					</a>
-					<a href="/introduction_fy.html" class="btn btn--white btn--small" title="Harkje nei it Waad">
+					<a href="./introduction_fy.html" id="btn-fy" class="btn btn--white btn--small" title="Harkje nei it Waad">
 						<i class="icon-fryslan"></i>
 						<span>Harkje nei it Waad</span>
 						<i class="icon-headset"></i>
@@ -64,95 +65,170 @@
 	</article>
 </main>
 
-<!-- Hidden audio elements (index is silent until click) -->
+<!-- Persistent audio (kept outside <main> so SPA swaps don't kill it) -->
 <audio id="bgAudio" loop preload="auto" playsinline></audio>
 <audio id="introAudio" preload="auto" playsinline></audio>
 
 <script>
-  // === Audio file paths (relative to this page) ===
+  /* =========================
+     AUDIO FILES (relative paths)
+     ========================= */
   const SEASON_TRACKS = [
     "./assets/audio/Soundscapes - Lente - Dijk van een Wijf V2.mp3",
     "./assets/audio/Soundscapes - Zommer - Dijk van een Wijf V2.mp3",
     "./assets/audio/Soundscapes - Herfst - Dijk van een Wijf V2.mp3",
     "./assets/audio/Soundscapes - Winter - Dijk van een Wijf V2.mp3"
   ];
-  // First part of the Dutch intro voice
-  const INTRO_NL = "./assets/audio/DveW_Intro_NL_2 (silent intro).mp3";
 
-  // === Seasonal selection by month ===
-  function getSeasonIndex() {
+  // Part 1 (silent intro) per language
+  const INTRO_PART1 = {
+    nl: "./assets/audio/DveW_Intro_NL_2 (silent intro).mp3",
+    en: "./assets/audio/DveW_Intro_EN_2 (silent intro).mp3",
+    fy: "./assets/audio/DveW_Intro_FR_2 (silent intro).mp3" // FR files used for Frisian
+  };
+
+  // Part 2 (introtext) per language, to play when entering conversation pages
+  const INTRO_PART2 = {
+    nl: "./assets/audio/Dijk van een Wijf - Introtext NL_1.2.mp3",
+    en: "./assets/audio/Dijk van een Wijf - Introtext EN_1.2.mp3",
+    fy: "./assets/audio/Dijk van een Wijf - Introtext FR_1.2.mp3" // FR files used for Frisian
+  };
+
+  /* =========================
+     HELPERS
+     ========================= */
+  function getSeasonIndex(){
     const m = new Date().getMonth(); // 0..11
-    if (m >= 2 && m <= 4) return 0;   // Lente (Mar–May)
-    if (m >= 5 && m <= 7) return 1;   // Zomer (Jun–Aug)
-    if (m >= 8 && m <= 10) return 2;  // Herfst (Sep–Nov)
-    return 3;                         // Winter (Dec–Feb)
+    if (m>=2 && m<=4) return 0; // Lente
+    if (m>=5 && m<=7) return 1; // Zomer
+    if (m>=8 && m<=10) return 2; // Herfst
+    return 3; // Winter
   }
 
-  const bgEl = document.getElementById("bgAudio");
+  const bgEl    = document.getElementById("bgAudio");
   const introEl = document.getElementById("introAudio");
 
-  // Web Audio graph for volume control (BG 20%, Voice 100%)
-  let audioCtx, bgGain, voiceGain, graphReady = false;
+  // Volumes: background 20%, voice 100%
+  let audioCtx, bgGain, voiceGain, graphReady=false, bedStarted=false;
 
-  function ensureGraph() {
+  function ensureGraph(){
     if (graphReady) return;
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     bgGain = audioCtx.createGain();
     voiceGain = audioCtx.createGain();
-    bgGain.gain.value = 0.20;   // background at 20%
-    voiceGain.gain.value = 1.00; // voice at 100%
-    const bgSrc = audioCtx.createMediaElementSource(bgEl);
-    const vSrc  = audioCtx.createMediaElementSource(introEl);
-    bgSrc.connect(bgGain).connect(audioCtx.destination);
-    vSrc.connect(voiceGain).connect(audioCtx.destination);
+    bgGain.gain.value   = 0.20;
+    voiceGain.gain.value= 1.00;
+    audioCtx.createMediaElementSource(bgEl).connect(bgGain).connect(audioCtx.destination);
+    audioCtx.createMediaElementSource(introEl).connect(voiceGain).connect(audioCtx.destination);
     graphReady = true;
   }
 
-  // Replace only the <main> content with the fetched introduction page, keep audio running
-  async function loadIntroductionIntoView() {
-    try {
-      const res = await fetch("./introduction.html", { credentials: "same-origin" });
+  async function startSoundscapeOnce(){
+    if (bedStarted) return;
+    ensureGraph();
+    if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
+    bgEl.src = SEASON_TRACKS[getSeasonIndex()];
+    try { await bgEl.play(); } catch(e){}
+    bedStarted = true; // never stop (SPA keeps it alive)
+  }
+
+  async function playVoice(filePath){
+    ensureGraph();
+    if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
+    try { introEl.pause(); introEl.currentTime = 0; } catch(e){}
+    introEl.src = filePath;
+    try { await introEl.play(); } catch(e){}
+  }
+
+  // SPA loader: replace only <main> so audio continues
+  async function loadIntoMain(url){
+    const resolved = url.startsWith("/") ? "."+url : url;
+    try{
+      const res = await fetch(resolved, { credentials: "same-origin" });
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, "text/html");
       const newMain = doc.querySelector("main");
-      if (newMain) {
-        // update body class to match introduction page (keeps your styling)
+      if (newMain){
         if (doc.body && doc.body.className) document.body.className = doc.body.className;
-        // swap the main content
-        const currentMain = document.querySelector("main");
-        currentMain.innerHTML = newMain.innerHTML;
+        document.querySelector("main").innerHTML = newMain.innerHTML;
       }
-      // reflect URL change without full reload
-      history.pushState({}, "", "./introduction.html");
-    } catch (e) {
-      // If fetch fails, fall back to normal navigation
-      window.location.href = "./introduction.html";
+      history.pushState({}, "", resolved);
+      return true;
+    }catch(err){
+      location.href = resolved; // fallback (bed will restart)
+      return false;
     }
   }
 
-  // Start soundtrack + intro voice, then show the introduction page (without reloading)
-  async function startDutchFlow() {
-    ensureGraph();
-    if (audioCtx.state === "suspended") {
-      try { await audioCtx.resume(); } catch(e) {}
-    }
-
-    // start seasonal background
-    bgEl.src = SEASON_TRACKS[getSeasonIndex()];
-    bgEl.play().catch(()=>{});
-
-    // start first part of Dutch intro voice
-    introEl.src = INTRO_NL;
-    introEl.play().catch(()=>{});
-
-    // load the introduction page content and update the URL
-    await loadIntroductionIntoView();
+  // Load ElevenLabs script when hitting conversation pages (for the real widget)
+  function ensureElevenLabsScript(){
+    if (window.__elevenlabsEmbedLoaded) return;
+    const existing = document.querySelector('script[src*="@elevenlabs/convai-widget-embed"]');
+    if (existing){ window.__elevenlabsEmbedLoaded = true; return; }
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async = true;
+    s.onload = ()=>{ window.__elevenlabsEmbedLoaded = true; };
+    document.head.appendChild(s);
   }
 
-  // Intercept the Dutch CTA
-  document.getElementById("btn-nl").addEventListener("click", function (e) {
+  // Infer language from a target URL
+  function langFromHref(href){
+    if (/conversation_en\.html$/i.test(href) || /introduction_en\.html$/i.test(href)) return "en";
+    if (/conversation_fy\.html$/i.test(href) || /introduction_fy\.html$/i.test(href)) return "fy";
+    return "nl";
+  }
+
+  /* =========================
+     INTERCEPT CONVERSATION LINKS:
+     - keep bed playing
+     - stop any current voice
+     - play correct Part 2 for that language after content loads
+     ========================= */
+  document.addEventListener("click", async (e)=>{
+    const a = e.target.closest("a[href]");
+    if (!a) return;
+    const href = a.getAttribute("href") || "";
+    const convoRE = /(^|\/)conversation(_en|_fy)?\.html$/i;
+    if (convoRE.test(href)){
+      e.preventDefault();
+      const lang = langFromHref(href);
+      try { introEl.pause(); introEl.currentTime = 0; } catch(e){}
+      ensureElevenLabsScript();
+      const ok = await loadIntoMain(href);
+      if (ok){
+        await playVoice(INTRO_PART2[lang]); // play the language-correct introtext on entering conversation
+      }
+    }
+  });
+
+  // Handle browser back/forward while keeping audio alive
+  window.addEventListener("popstate", () => {
+    loadIntoMain(location.pathname);
+  });
+
+  /* =========================
+     HOME CTA FLOWS (start bed + play Part 1 in that language, then load intro)
+     ========================= */
+  document.getElementById("btn-nl").addEventListener("click", async (e)=>{
     e.preventDefault();
-    startDutchFlow();
+    await startSoundscapeOnce();
+    await playVoice(INTRO_PART1.nl);
+    loadIntoMain("./introduction.html");
+  });
+
+  document.getElementById("btn-en").addEventListener("click", async (e)=>{
+    e.preventDefault();
+    await startSoundscapeOnce();
+    await playVoice(INTRO_PART1.en);
+    loadIntoMain("./introduction_en.html");
+  });
+
+  document.getElementById("btn-fy").addEventListener("click", async (e)=>{
+    e.preventDefault();
+    await startSoundscapeOnce();
+    await playVoice(INTRO_PART1.fy);
+    loadIntoMain("./introduction_fy.html");
   });
 </script>
 </body>
