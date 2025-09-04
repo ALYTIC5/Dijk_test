@@ -5,9 +5,16 @@
 	<link rel="stylesheet" href="./src/css/style.css" media="all"/>
 	<title>Dijk van een Wijf | Verhalen en wijsheden over natuur en tijd</title>
 	<meta name="description" content="Ga in gesprek met het Wad en ontdek eeuwenoude verhalen, wijsheden over de natuur en inspirerende inzichten. Stel je vragen en laat je meenemen op een onvergetelijke reis door de tijd en natuur."/>
+	<meta name="keywords" content="gesprek met het Wad, natuur verhalen, wijsheden van het Wad, interactief gesprek, tijd en natuur, het Wad, stem van het Wad, Wad inspiratie, vragen stellen over natuur, eeuwenoude verhalen"/>
+	<meta name="robots" content="index,follow"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
 	<link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
+	<link rel="shortcut icon" href="favicon.ico" />
+	<link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon/apple-touch-icon.png" />
+	<meta name="apple-mobile-web-app-title" content="Dijk van een Wijf" />
+	<link rel="manifest" href="/assets/favicon/site.webmanifest" />
 </head>
 <body class="page page--home">
 <main>
@@ -25,8 +32,10 @@
 						</div>
 						<h1>Ontdek het Wad.</h1>
 						<p class="font-semibold text-pretty">Hier, aan de voet van Dijk van een Wijf, start jouw reis. Luister naar de introductie en ga daarna in gesprek met het Wad.</p>
-						<p class="text-pretty">Via de microfoon van je telefoon kun je al je vragen stellen; over het kunstwerk, over het Wad, de planten en dieren. Laat je meevoeren in alle, soms eeuwenoude, verhalen van dit unieke gebied.</p>
-						<a href="/introduction.html" class="btn btn--headset group" title="Luister naar het Wad">
+						<p class="text-pretty">Via de microfoon van je telefoon kun je al je vragen stellen; over het kunstwerk, over het Wad, de planten en dieren. Laat je meevoeren in alle, soms eeuwenoude, verhalen
+							van dit unieke gebied.</p>
+						<!-- Changed to button-like link we intercept to start audio + load intro content -->
+						<a href="/introduction.html" id="btn-nl" class="btn btn--headset group" title="Luister naar het Wad">
 							<span>Luister naar het Wad</span>
 							<i class="icon-headset text-[22px] group-hover:ml-2"></i>
 						</a>
@@ -55,37 +64,96 @@
 	</article>
 </main>
 
-<!-- Seasonal background audio -->
+<!-- Hidden audio elements (index is silent until click) -->
 <audio id="bgAudio" loop preload="auto" playsinline></audio>
+<audio id="introAudio" preload="auto" playsinline></audio>
+
 <script>
-  const tracks = [
-    "Soundscapes - Lente - Dijk van een Wijf V2.mp3",
-    "Soundscapes - Zommer - Dijk van een Wijf V2.mp3",
-    "Soundscapes - Herfst - Dijk van een Wijf V2.mp3",
-    "Soundscapes - Winter - Dijk van een Wijf V2.mp3"
+  // === Audio file paths (relative to this page) ===
+  const SEASON_TRACKS = [
+    "./assets/audio/Soundscapes - Lente - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Zommer - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Herfst - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Winter - Dijk van een Wijf V2.mp3"
   ];
-  const month = new Date().getMonth();
-  const seasonIndex = (month>=2&&month<=4)?0:(month>=5&&month<=7)?1:(month>=8&&month<=10)?2:3;
-  const bgAudio = document.getElementById("bgAudio");
+  // First part of the Dutch intro voice
+  const INTRO_NL = "./assets/audio/DveW_Intro_NL_2 (silent intro).mp3";
 
-  // Web Audio API for volume control
-  let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  let bgGainNode = audioCtx.createGain();
-  bgGainNode.gain.value = 0.20; // 20% volume
+  // === Seasonal selection by month ===
+  function getSeasonIndex() {
+    const m = new Date().getMonth(); // 0..11
+    if (m >= 2 && m <= 4) return 0;   // Lente (Mar–May)
+    if (m >= 5 && m <= 7) return 1;   // Zomer (Jun–Aug)
+    if (m >= 8 && m <= 10) return 2;  // Herfst (Sep–Nov)
+    return 3;                         // Winter (Dec–Feb)
+  }
 
-  const source = audioCtx.createMediaElementSource(bgAudio);
-  source.connect(bgGainNode).connect(audioCtx.destination);
+  const bgEl = document.getElementById("bgAudio");
+  const introEl = document.getElementById("introAudio");
 
-  bgAudio.src = tracks[seasonIndex];
-  bgAudio.load();
+  // Web Audio graph for volume control (BG 20%, Voice 100%)
+  let audioCtx, bgGain, voiceGain, graphReady = false;
 
-  // Autoplay policies → must start after user interaction on some devices
-  document.addEventListener("click", () => {
-    if (audioCtx.state === "suspended") {
-      audioCtx.resume();
+  function ensureGraph() {
+    if (graphReady) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    bgGain = audioCtx.createGain();
+    voiceGain = audioCtx.createGain();
+    bgGain.gain.value = 0.20;   // background at 20%
+    voiceGain.gain.value = 1.00; // voice at 100%
+    const bgSrc = audioCtx.createMediaElementSource(bgEl);
+    const vSrc  = audioCtx.createMediaElementSource(introEl);
+    bgSrc.connect(bgGain).connect(audioCtx.destination);
+    vSrc.connect(voiceGain).connect(audioCtx.destination);
+    graphReady = true;
+  }
+
+  // Replace only the <main> content with the fetched introduction page, keep audio running
+  async function loadIntroductionIntoView() {
+    try {
+      const res = await fetch("./introduction.html", { credentials: "same-origin" });
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const newMain = doc.querySelector("main");
+      if (newMain) {
+        // update body class to match introduction page (keeps your styling)
+        if (doc.body && doc.body.className) document.body.className = doc.body.className;
+        // swap the main content
+        const currentMain = document.querySelector("main");
+        currentMain.innerHTML = newMain.innerHTML;
+      }
+      // reflect URL change without full reload
+      history.pushState({}, "", "./introduction.html");
+    } catch (e) {
+      // If fetch fails, fall back to normal navigation
+      window.location.href = "./introduction.html";
     }
-    bgAudio.play().catch(()=>{});
-  }, { once: true });
+  }
+
+  // Start soundtrack + intro voice, then show the introduction page (without reloading)
+  async function startDutchFlow() {
+    ensureGraph();
+    if (audioCtx.state === "suspended") {
+      try { await audioCtx.resume(); } catch(e) {}
+    }
+
+    // start seasonal background
+    bgEl.src = SEASON_TRACKS[getSeasonIndex()];
+    bgEl.play().catch(()=>{});
+
+    // start first part of Dutch intro voice
+    introEl.src = INTRO_NL;
+    introEl.play().catch(()=>{});
+
+    // load the introduction page content and update the URL
+    await loadIntroductionIntoView();
+  }
+
+  // Intercept the Dutch CTA
+  document.getElementById("btn-nl").addEventListener("click", function (e) {
+    e.preventDefault();
+    startDutchFlow();
+  });
 </script>
 </body>
 </html>
