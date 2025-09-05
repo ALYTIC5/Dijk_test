@@ -4,7 +4,7 @@
 	<meta charset="UTF-8"/>
 	<link rel="stylesheet" href="./src/css/style.css" media="all"/>
 	<title>Dijk van een Wijf | Verhalen en wijsheden over natuur en tijd</title>
-	<meta name="description" content="Ga in gesprek met het Wad en ontdek eeuwenoude verhalen, wijsheden over de natuur en inspirerende inzichten. Stel je vragen en laat je meenemen op een onvergetelijke reis door de tijd en natuur."/>
+	<meta name="description" content="Ga in gesprek met het Wad en ontdek eeuwenoude verhalen, wijsheden over de natuur en inspirerende inzichten. Stel je vragen en laat je meevoeren op een onvergetelijke reis door de tijd en natuur."/>
 	<meta name="keywords" content="gesprek met het Wad, natuur verhalen, wijsheden van het Wad, interactief gesprek, tijd en natuur, het Wad, stem van het Wad, Wad inspiratie, vragen stellen over natuur, eeuwenoude verhalen"/>
 	<meta name="robots" content="index,follow"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
@@ -65,8 +65,8 @@
 	</article>
 </main>
 
-<!-- === Permission gate (Henric-style), shown immediately, black box w/ white text === -->
-<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+<!-- === Permission gate (Henric-style), shown only on first visit === -->
+<div class="gate hidden" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
   <div class="card">
     <h1 id="gateTitle">Microfoon inschakelen?</h1>
     <p>Deze ervaring gebruikt de ElevenLabs stem-assistent en heeft toegang tot je microfoon nodig.</p>
@@ -258,10 +258,17 @@ Contact: support@finetune.audio
   }
 
   /* =========================
-     GATE — show immediately on load (black card)
+     CONSENT + PERMISSION STATE
      ========================= */
+  const PRIVACY_KEY = "privacyAccepted_v1";
+
   const gate = document.getElementById("gate");
   const privacyDialog = document.getElementById("privacyDialog");
+
+  function hasMic(){ return localStorage.getItem("micGranted")==="1"; }
+  function hasPrivacy(){ return localStorage.getItem(PRIVACY_KEY)==="1"; }
+  function markPrivacyAccepted(){ localStorage.setItem(PRIVACY_KEY, "1"); }
+
   document.getElementById("openPrivacy").addEventListener("click", () => privacyDialog.showModal());
   document.getElementById("closePrivacy").addEventListener("click", () => privacyDialog.close());
 
@@ -276,6 +283,7 @@ Contact: support@finetune.audio
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       localStorage.setItem("micGranted","1");
+      markPrivacyAccepted(); // Treat mic allow as consent acknowledgement
       gate.classList.add("hidden");
 
       // If this allow came from a widget click, re-trigger the widget click so it opens immediately.
@@ -292,9 +300,13 @@ Contact: support@finetune.audio
     }
   }
 
-  // Show the gate right away (Henric behaviour)
+  // Only show the gate the very first time (or if mic hasn't been granted yet and privacy not accepted)
   window.addEventListener("DOMContentLoaded", () => {
-    gate.classList.remove("hidden");
+    if (hasPrivacy() || hasMic()) {
+      gate.classList.add("hidden");
+    } else {
+      gate.classList.remove("hidden");
+    }
   });
 
   /* =========================
@@ -315,35 +327,38 @@ Contact: support@finetune.audio
 
   document.getElementById("btn-nl").addEventListener("click", async (e)=>{
     e.preventDefault();
-    if (localStorage.getItem("micGranted")==="1"){
+    if (hasMic()){
       await startSoundscapeOnce();
       await playVoice(INTRO_PART1.nl);
       loadIntoMain("./introduction.html");
     } else {
-      // Gate already visible; queue continuation
+      // Gate visible or will be shown; queue continuation
       continueAfterAllow("nl", "./introduction.html");
+      gate.classList.remove("hidden");
     }
   });
 
   document.getElementById("btn-en").addEventListener("click", async (e)=>{
     e.preventDefault();
-    if (localStorage.getItem("micGranted")==="1"){
+    if (hasMic()){
       await startSoundscapeOnce();
       await playVoice(INTRO_PART1.en);
       loadIntoMain("./introduction_en.html");
     } else {
       continueAfterAllow("en", "./introduction_en.html");
+      gate.classList.remove("hidden");
     }
   });
 
   document.getElementById("btn-fy").addEventListener("click", async (e)=>{
     e.preventDefault();
-    if (localStorage.getItem("micGranted")==="1"){
+    if (hasMic()){
       await startSoundscapeOnce();
       await playVoice(INTRO_PART1.fy);
       loadIntoMain("./introduction_fy.html");
     } else {
       continueAfterAllow("fy", "./introduction_fy.html");
+      gate.classList.remove("hidden");
     }
   });
 
@@ -386,7 +401,7 @@ Contact: support@finetune.audio
   function widgetIntercept(e){
     const widget = e.target.closest("elevenlabs-convai");
     if (!widget) return;
-    if (localStorage.getItem("micGranted")==="1") return; // already ok
+    if (hasMic()) return; // already ok
 
     // Prevent widget from handling the click first; show our gate simultaneously
     e.stopPropagation();
