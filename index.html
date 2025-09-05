@@ -35,7 +35,7 @@
 						<p class="text-pretty">Via de microfoon van je telefoon kun je al je vragen stellen; over het kunstwerk, over het Wad, de planten en dieren. Laat je meevoeren in alle, soms eeuwenoude, verhalen
 							van dit unieke gebied.</p>
 
-						<!-- NL primary CTA (we intercept this to start audio + SPA to keep bed playing) -->
+						<!-- NL primary CTA (intercepted to keep soundscape alive via SPA) -->
 						<a href="./introduction.html" id="btn-nl" class="btn btn--headset group" title="Luister naar het Wad">
 							<span>Luister naar het Wad</span>
 							<i class="icon-headset text-[22px] group-hover:ml-2"></i>
@@ -65,9 +65,86 @@
 	</article>
 </main>
 
+<!-- === Permission gate (Henric-style), shown immediately, black box w/ white text === -->
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <div class="card">
+    <h1 id="gateTitle">Microfoon inschakelen?</h1>
+    <p>Deze ervaring gebruikt de ElevenLabs stem-assistent en heeft toegang tot je microfoon nodig.</p>
+    <div class="row">
+      <button class="btn btn-deny" id="denyBtn" type="button">Niet nu</button>
+      <button class="btn btn-allow" id="allowBtn" type="button">Toestaan</button>
+    </div>
+    <p class="small">
+      🌐 Uitgebreider privacy statement
+      (<span id="openPrivacy" class="link" role="button" tabindex="0" aria-controls="privacyDialog">lees meer</span>)
+    </p>
+  </div>
+</div>
+
+<dialog id="privacyDialog" class="privacy" aria-labelledby="privacyTitle">
+  <div class="dialog-header">
+    <h2 class="dialog-title" id="privacyTitle">🌐 Uitgebreider privacy statement</h2>
+    <button class="dialog-close" id="closePrivacy" aria-label="Sluiten">Sluiten</button>
+  </div>
+  <div class="dialog-body">
+    <div class="dialog-content">
+Privacyverklaring interactieve ervaring
+
+Deze applicatie maakt gebruik van:
+• OpenAI (taalverwerking)
+• ElevenLabs (tekst-naar-spraak)
+
+Wanneer je praat of tekst invoert, wordt dit realtime verwerkt om te kunnen antwoorden. Gegevens worden uitsluitend gebruikt voor het lopende gesprek en niet bewaard door Fine Tune Audio, OpenAI of ElevenLabs.
+
+Rechtsgrond: toestemming.
+Je rechten: je kunt je toestemming intrekken en ons om uitleg vragen.
+Contact: support@finetune.audio
+    </div>
+  </div>
+</dialog>
+
 <!-- Persistent audio (kept outside <main> so SPA swaps don't kill it) -->
 <audio id="bgAudio" loop preload="auto" playsinline></audio>
 <audio id="introAudio" preload="auto" playsinline></audio>
+
+<style>
+  .hidden { display: none !important; }
+
+  /* Black permission card with white text */
+  .gate {
+    position: fixed; inset: 0;
+    display: flex; justify-content: center; align-items: flex-end;
+    padding-bottom: 18%; z-index: 1000;
+    background: rgba(0,0,0,0.35);
+  }
+  .gate .card {
+    width: min(90vw, 460px);
+    border-radius: 18px;
+    background: #000; /* black box */
+    color: #fff;      /* white text */
+    box-shadow: 0 12px 40px rgba(0,0,0,.45);
+    padding: 20px; text-align: center;
+  }
+  .gate .card h1 { font-size: 1.15rem; margin: 6px 0 10px; }
+  .gate .card p  { font-size: .98rem; margin: 0 10px 12px; color: #fff; }
+  .gate .row { display: flex; gap: 10px; }
+  .gate .btn { flex: 1 1 auto; padding: 12px 14px; border-radius: 12px; border: 2px solid transparent; font-weight: 700; cursor: pointer; }
+  .gate .btn-allow { background: var(--color-orange); color: #111; } /* same orange as site */
+  .gate .btn-deny  { background: #1a1a1a; color: #fff; border-color: #333; }
+  .gate .small { font-size: 0.86rem; color: #fff; margin-top: 8px; }
+  .gate .link { color: #fff; text-decoration: underline; cursor: pointer; font-weight: 700; }
+
+  dialog.privacy {
+    width: min(92vw, 560px); border: none; border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35); padding: 0; max-height: 80vh;
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.45); }
+  .dialog-header { display:flex; align-items:center; justify-content:space-between; padding: 14px 16px; border-bottom: 1px solid #eee; }
+  .dialog-title { margin:0; font-size: 1rem; font-weight: 800; }
+  .dialog-close { border:none; background:#eee; color:#111; font-weight:700; padding:8px 12px; border-radius:10px; cursor:pointer; }
+  .dialog-body { padding: 18px 18px 6px; }
+  .dialog-content { padding: 0 16px 16px; font-size: .95rem; line-height: 1.45; white-space: pre-wrap; }
+</style>
 
 <script>
   /* =========================
@@ -80,18 +157,18 @@
     "./assets/audio/Soundscapes - Winter - Dijk van een Wijf V2.mp3"
   ];
 
-  // Part 1 (silent intro) per language
+  // Part 1 (silent-intro) per language (plays after permission when user picks a language)
   const INTRO_PART1 = {
     nl: "./assets/audio/DveW_Intro_NL_2 (silent intro).mp3",
     en: "./assets/audio/DveW_Intro_EN_2 (silent intro).mp3",
-    fy: "./assets/audio/DveW_Intro_FR_2 (silent intro).mp3" // FR files used for Frisian
+    fy: "./assets/audio/DveW_Intro_FR_2 (silent intro).mp3"
   };
 
-  // Part 2 (introtext) per language, to play when entering conversation pages
+  // Part 2 (introtext) per language (plays on entering conversation)
   const INTRO_PART2 = {
     nl: "./assets/audio/Dijk van een Wijf - Introtext NL_1.2.mp3",
     en: "./assets/audio/Dijk van een Wijf - Introtext EN_1.2.mp3",
-    fy: "./assets/audio/Dijk van een Wijf - Introtext FR_1.2.mp3" // FR files used for Frisian
+    fy: "./assets/audio/Dijk van een Wijf - Introtext FR_1.2.mp3"
   };
 
   /* =========================
@@ -109,7 +186,7 @@
   const introEl = document.getElementById("introAudio");
 
   // Volumes: background 20%, voice 100%
-  let audioCtx, bgGain, voiceGain, graphReady=false, bedStarted=false;
+  let audioCtx, bgGain, voiceGain, graphReady=false, bedStarted=false, pendingLang=null, pendingIntroUrl=null, pendingWidgetClick=false;
 
   function ensureGraph(){
     if (graphReady) return;
@@ -129,7 +206,7 @@
     if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
     bgEl.src = SEASON_TRACKS[getSeasonIndex()];
     try { await bgEl.play(); } catch(e){}
-    bedStarted = true; // never stop (SPA keeps it alive)
+    bedStarted = true; // keep running (SPA navigation keeps audio elements alive)
   }
 
   async function playVoice(filePath){
@@ -153,14 +230,16 @@
         document.querySelector("main").innerHTML = newMain.innerHTML;
       }
       history.pushState({}, "", resolved);
+      // after swapping content, re-hook widget listeners if present
+      hookElevenLabsWidgetClicks();
       return true;
     }catch(err){
-      location.href = resolved; // fallback (bed will restart)
+      location.href = resolved; // fallback (bed will restart if page reloads)
       return false;
     }
   }
 
-  // Load ElevenLabs script when hitting conversation pages (for the real widget)
+  // Load ElevenLabs script on conversation pages (for real widget)
   function ensureElevenLabsScript(){
     if (window.__elevenlabsEmbedLoaded) return;
     const existing = document.querySelector('script[src*="@elevenlabs/convai-widget-embed"]');
@@ -172,18 +251,105 @@
     document.head.appendChild(s);
   }
 
-  // Infer language from a target URL
   function langFromHref(href){
-    if (/conversation_en\.html$/i.test(href) || /introduction_en\.html$/i.test(href)) return "en";
-    if (/conversation_fy\.html$/i.test(href) || /introduction_fy\.html$/i.test(href)) return "fy";
+    if (/(_en)\.html$/i.test(href)) return "en";
+    if (/(_fy)\.html$/i.test(href)) return "fy";
     return "nl";
   }
 
   /* =========================
-     INTERCEPT CONVERSATION LINKS:
-     - keep bed playing
-     - stop any current voice
-     - play correct Part 2 for that language after content loads
+     GATE — show immediately on load (black card)
+     ========================= */
+  const gate = document.getElementById("gate");
+  const privacyDialog = document.getElementById("privacyDialog");
+  document.getElementById("openPrivacy").addEventListener("click", () => privacyDialog.showModal());
+  document.getElementById("closePrivacy").addEventListener("click", () => privacyDialog.close());
+
+  // If user clicks "Niet nu" → send them to Sense of Place site
+  document.getElementById("denyBtn").addEventListener("click", () => {
+    window.location.href = "https://sense-of-place.eu/";
+  });
+
+  document.getElementById("allowBtn").addEventListener("click", onAllowMic);
+
+  async function onAllowMic() {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStorage.setItem("micGranted","1");
+      gate.classList.add("hidden");
+
+      // If this allow came from a widget click, re-trigger the widget click so it opens immediately.
+      if (pendingWidgetClick) {
+        pendingWidgetClick = false;
+        const widget = document.querySelector("elevenlabs-convai");
+        if (widget) {
+          // Next tick to allow web component to settle
+          setTimeout(() => widget.click(), 0);
+        }
+      }
+    } catch {
+      alert("Microfoontoegang geweigerd. Schakel dit in om door te gaan.");
+    }
+  }
+
+  // Show the gate right away (Henric behaviour)
+  window.addEventListener("DOMContentLoaded", () => {
+    gate.classList.remove("hidden");
+  });
+
+  /* =========================
+     LANGUAGE FLOWS
+     If mic already granted → go straight to soundscape + language Part 1 + intro page.
+     Else → gate stays open; on allow we continue.
+     ========================= */
+  function continueAfterAllow(lang, introUrl){
+    // When Allow is pressed later, this listener will run once
+    const handler = async () => {
+      document.getElementById("allowBtn").removeEventListener("click", handler);
+      await startSoundscapeOnce();
+      await playVoice(INTRO_PART1[lang] || INTRO_PART1.nl);
+      loadIntoMain(introUrl || "./introduction.html");
+    };
+    document.getElementById("allowBtn").addEventListener("click", handler);
+  }
+
+  document.getElementById("btn-nl").addEventListener("click", async (e)=>{
+    e.preventDefault();
+    if (localStorage.getItem("micGranted")==="1"){
+      await startSoundscapeOnce();
+      await playVoice(INTRO_PART1.nl);
+      loadIntoMain("./introduction.html");
+    } else {
+      // Gate already visible; queue continuation
+      continueAfterAllow("nl", "./introduction.html");
+    }
+  });
+
+  document.getElementById("btn-en").addEventListener("click", async (e)=>{
+    e.preventDefault();
+    if (localStorage.getItem("micGranted")==="1"){
+      await startSoundscapeOnce();
+      await playVoice(INTRO_PART1.en);
+      loadIntoMain("./introduction_en.html");
+    } else {
+      continueAfterAllow("en", "./introduction_en.html");
+    }
+  });
+
+  document.getElementById("btn-fy").addEventListener("click", async (e)=>{
+    e.preventDefault();
+    if (localStorage.getItem("micGranted")==="1"){
+      await startSoundscapeOnce();
+      await playVoice(INTRO_PART1.fy);
+      loadIntoMain("./introduction_fy.html");
+    } else {
+      continueAfterAllow("fy", "./introduction_fy.html");
+    }
+  });
+
+  /* =========================
+     CONVERSATION NAVIGATION:
+     keep bed; stop Part 1; then play language-correct Part 2
      ========================= */
   document.addEventListener("click", async (e)=>{
     const a = e.target.closest("a[href]");
@@ -197,39 +363,43 @@
       ensureElevenLabsScript();
       const ok = await loadIntoMain(href);
       if (ok){
-        await playVoice(INTRO_PART2[lang]); // play the language-correct introtext on entering conversation
+        await playVoice(INTRO_PART2[lang] || INTRO_PART2.nl);
       }
     }
   });
 
-  // Handle browser back/forward while keeping audio alive
+  // Keep SPA feel on back/forward while bed continues
   window.addEventListener("popstate", () => {
     loadIntoMain(location.pathname);
   });
 
   /* =========================
-     HOME CTA FLOWS (start bed + play Part 1 in that language, then load intro)
+     ELEVENLABS WIDGET HOOK:
+     If user taps the widget before granting mic, show gate and
+     on Allow re-dispatch the click so the widget opens without asking again.
      ========================= */
-  document.getElementById("btn-nl").addEventListener("click", async (e)=>{
-    e.preventDefault();
-    await startSoundscapeOnce();
-    await playVoice(INTRO_PART1.nl);
-    loadIntoMain("./introduction.html");
-  });
+  function hookElevenLabsWidgetClicks(){
+    document.removeEventListener("click", widgetIntercept, true);
+    document.addEventListener("click", widgetIntercept, true);
+  }
 
-  document.getElementById("btn-en").addEventListener("click", async (e)=>{
-    e.preventDefault();
-    await startSoundscapeOnce();
-    await playVoice(INTRO_PART1.en);
-    loadIntoMain("./introduction_en.html");
-  });
+  function widgetIntercept(e){
+    const widget = e.target.closest("elevenlabs-convai");
+    if (!widget) return;
+    if (localStorage.getItem("micGranted")==="1") return; // already ok
 
-  document.getElementById("btn-fy").addEventListener("click", async (e)=>{
+    // Prevent widget from handling the click first; show our gate simultaneously
+    e.stopPropagation();
     e.preventDefault();
-    await startSoundscapeOnce();
-    await playVoice(INTRO_PART1.fy);
-    loadIntoMain("./introduction_fy.html");
-  });
+    pendingWidgetClick = true;
+    gate.classList.remove("hidden");
+  }
+
+  // Initial hook (index), and will be re-hooked after SPA loads
+  hookElevenLabsWidgetClicks();
 </script>
+
+<!-- Load ElevenLabs early so widget is ready when SPA reaches conversation -->
+<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
 </body>
 </html>
