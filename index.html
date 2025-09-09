@@ -4,8 +4,8 @@
 	<meta charset="UTF-8"/>
 	<link rel="stylesheet" href="./src/css/style.css" media="all"/>
 	<title>Dijk van een Wijf | Verhalen en wijsheden over natuur en tijd</title>
-	<meta name="description" content="Ga in gesprek met het Wad en ontdek eeuwenoude verhalen, wijsheden over de natuur en inspirerende inzichten. Stel je vragen en laat je meenemen op een onvergetelijke reis door de tijd en natuur."/>
-	<meta name="keywords" content="gesprek met het Wad, natuur verhalen, wijsheden van het Wad, interactief gesprek, tijd en natuur, het Wad, stem van het Wad, Wad inspiratie, vragen stellen over natuur, eeuwenoude verhalen"/>
+	<meta name="description" content="Ga in gesprek met het Wadden en ontdek eeuwenoude verhalen, wijsheden over de natuur en inspirerende inzichten. Stel je vragen en laat je meenemen op een onvergetelijke reis door de tijd en natuur."/>
+	<meta name="keywords" content="gesprek met het Wadden, natuur verhalen, wijsheden van het Wadden, interactief gesprek, tijd en natuur, het Wadden, stem van het Wadden, Wadden inspiratie, vragen stellen over natuur, eeuwenoude verhalen"/>
 	<meta name="robots" content="index,follow"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
@@ -26,18 +26,19 @@
 						<div class="flex justify-between items-center">
 							<a href="./introduction.html">
 								<figure>
-									<img src="./assets/img/dijk-van-een-wijf-logo.png" alt="Ga naar de homepagina">
+									<img src="./assets/img/DVEW_Logo_Black.png" alt="Ga naar de homepagina">
 								</figure>
 							</a>
 						</div>
-						<h1>Ontdek het Wad.</h1>
-						<p class="font-semibold text-pretty">Hier, aan de voet van Dijk van een Wijf, start jouw reis. Luister naar de introductie en ga daarna in gesprek met het Wad.</p>
-						<p class="text-pretty">Via de microfoon van je telefoon kun je al je vragen stellen; over het kunstwerk, over het Wad, de planten en dieren. Laat je meevoeren in alle, soms eeuwenoude, verhalen
-							van dit unieke gebied.</p>
+						<h1>Ontdek het Wadden.</h1>
+						<p class="font-semibold text-pretty">Hier, aan de voet van Dijk van een Wijf,
+start jouw reis. Luister naar de introductie
+en ga daarna in gesprek met het Wad.</p>
+						<p class="text-pretty">Via de microfoon van je telefoon kun je al je vragen stellen; over het kunstwerk, over het Wad, de planten en dieren. Laat je meevoeren in alle, soms eeuwenoude, verhalen van dit unieke gebied.</p>
 
 						<!-- NL primary CTA (intercepted to keep soundscape alive via SPA) -->
-						<a href="./introduction.html" id="btn-nl" class="btn btn--headset group" title="Luister naar het Wad">
-							<span>Luister naar het Wad</span>
+						<a href="./introduction.html" id="btn-nl" class="btn btn--headset group" title="Luister naar het Wadden">
+							<span>Luister naar het Wadden</span>
 							<i class="icon-headset text-[22px] group-hover:ml-2"></i>
 						</a>
 					</div>
@@ -46,16 +47,16 @@
 
 			<div class="container">
 				<div class="flex flex-col items-start gap-2.5">
-					<a href="./introduction_en.html" id="btn-en" class="btn btn--white btn--small" title="Listen to the Wad">
+					<a href="./introduction_en.html" id="btn-en" class="btn btn--white btn--small" title="Listen to the Wadden">
 						<figure class="size-5 rounded-full overflow-hidden grayscale">
 							<img class="w-full h-full object-cover object-center" src="./assets/img/united-kingdom-flag-icon.svg" alt="Engelse vlag"/>
 						</figure>
-						<span>Listen to the Wad</span>
+						<span>Listen to the Wadden</span>
 						<i class="icon-headset"></i>
 					</a>
-					<a href="./introduction_fy.html" id="btn-fy" class="btn btn--white btn--small" title="Harkje nei it Waad">
+					<a href="./introduction_fy.html" id="btn-fy" class="btn btn--white btn--small" title="Harkje nei it Wadden">
 						<i class="icon-fryslan"></i>
-						<span>Harkje nei it Waad</span>
+						<span>Harkje nei it Wadden</span>
 						<i class="icon-headset"></i>
 					</a>
 				</div>
@@ -65,8 +66,8 @@
 	</article>
 </main>
 
-<!-- === Permission gate (Henric-style), shown immediately, black box w/ white text === -->
-<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+<!-- === Permission gate (Henric-style), shown once per session === -->
+<div class="gate hidden" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
   <div class="card">
     <h1 id="gateTitle">Microfoon inschakelen?</h1>
     <p>Deze ervaring gebruikt de ElevenLabs stem-assistent en heeft toegang tot je microfoon nodig.</p>
@@ -258,7 +259,7 @@ Contact: support@finetune.audio
   }
 
   /* =========================
-     GATE — show immediately on load (black card)
+     GATE — show only once per session on initial page load
      ========================= */
   const gate = document.getElementById("gate");
   const privacyDialog = document.getElementById("privacyDialog");
@@ -292,15 +293,18 @@ Contact: support@finetune.audio
     }
   }
 
-  // Show the gate right away (Henric behaviour)
+  // Show the gate only on the first visit within this browser session
   window.addEventListener("DOMContentLoaded", () => {
-    gate.classList.remove("hidden");
+    if (!sessionStorage.getItem("gateShown")) {
+      gate.classList.remove("hidden");
+      sessionStorage.setItem("gateShown", "1");
+    }
   });
 
   /* =========================
      LANGUAGE FLOWS
      If mic already granted → go straight to soundscape + language Part 1 + intro page.
-     Else → gate stays open; on allow we continue.
+     Else → gate may be visible; on allow we continue.
      ========================= */
   function continueAfterAllow(lang, introUrl){
     // When Allow is pressed later, this listener will run once
@@ -320,7 +324,7 @@ Contact: support@finetune.audio
       await playVoice(INTRO_PART1.nl);
       loadIntoMain("./introduction.html");
     } else {
-      // Gate already visible; queue continuation
+      // Gate might be open or already closed for this session; queue continuation on allow
       continueAfterAllow("nl", "./introduction.html");
     }
   });

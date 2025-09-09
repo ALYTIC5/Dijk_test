@@ -766,3 +766,12 @@
     }
   }
 }
+
+/* ===============================
+   SCALE DOWN LOGOS (20% smaller)
+   =============================== */
+img[src*="DVEW_Logo_"] {
+  width: 60% !important;
+  height: auto !important;
+  margin: 0 auto; /* keeps logo centered in its figure */
+}
