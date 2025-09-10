@@ -775,3 +775,10 @@ img[src*="DVEW_Logo_"] {
   height: auto !important;
   margin: 0 auto; /* keeps logo centered in its figure */
 }
+
+/* On screens up to 768px (phones/tablets) → shrink further */
+@media (max-width: 768px) {
+  img[src*="DVEW_Logo_"] {
+    width: 45% !important;
+  }
+}
