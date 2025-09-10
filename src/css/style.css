@@ -22,6 +22,17 @@
   }
 }
 @layer base {
+  a > figure > img[src$="DVEW_Logo_Black.png"],
+  a > figure > img[src$="DVEW_Logo_White.png"],
+  figure > img[src$="DVEW_Logo_Black.png"],
+  figure > img[src$="DVEW_Logo_White.png"],
+  img[src*="DVEW_Logo_"] {
+    width: 45% !important;
+    height: auto !important;
+    display: block !important;
+    margin: 0 auto !important;
+    max-width: none !important; /* beats img{max-width:100%} from resets */
+  }
   *, ::after, ::before, ::backdrop, ::file-selector-button {
     box-sizing: border-box;
     margin: 0;
@@ -168,6 +179,8 @@
   [hidden]:where(:not([hidden="until-found"])) {
     display: none !important;
   }
+
+
 }
 @layer utilities {
   .absolute {
