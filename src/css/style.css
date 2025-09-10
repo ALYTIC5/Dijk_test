@@ -768,12 +768,12 @@
 }
 
 /* ===============================
-   SCALE DOWN LOGOS (20% smaller)
+   SCALE DOWN LOGOS (responsive)
    =============================== */
 img[src*="DVEW_Logo_"] {
-  width: 45% !important;
+  width: 45% !important;   /* default for desktop / larger screens */
   height: auto !important;
-  margin: 0 auto; /* keeps logo centered in its figure */
+  margin: 0 auto;
 }
 
 /* On screens up to 768px (phones/tablets) → shrink further */
