@@ -778,7 +778,7 @@ figure > img[src$="DVEW_Logo_Black.png"],
 figure > img[src$="DVEW_Logo_White.png"],
 img[src*="DVEW_Logo_"] {
   width: 45% !important;
-  height: auto !important;
+  height: 1% !important;
   max-width: none !important;   /* defeats any img { max-width:100% } */
   display: block !important;
   margin: 0 auto !important;    /* centered inside <figure> */
