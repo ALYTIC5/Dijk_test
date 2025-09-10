@@ -1,43 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8"/>
-	<link rel="stylesheet" href="./src/css/style.css" media="all"/>
-	<title>Dijk van een Wijf | Conversation</title>
-	<meta name="description" content="Ask your questions and listen to the stories and wisdom of the Waddend. Speak through your microphone and be taken on a journey through time and nature."/>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
-	<link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
-	<link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
+  <meta charset="UTF-8"/>
+  <link rel="stylesheet" href="./src/css/style.css" media="all"/>
+  <title>Dijk van een Wijf | Conversation</title>
+  <meta name="description" content="Ask your questions and listen to the stories and wisdom of the Wadden. Speak through your microphone and be taken on a journey through time and nature."/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
+  <link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
 </head>
 <body class="page page--conversation">
 <main>
-	<article>
-		<section>
-			<div class="relative flex flex-col justify-between h-full container pt-13 pb-4">
-				<div>
-					<div class="flex mb-11 justify-between items-center">
-						<a href="/index.html">
-							<figure>
-								<img src="./assets/img/DVEW_Logo_White.png" alt="Back to home">
-							</figure>
-						</a>
-						<a class="flex items-center gap-2.5 group hover:text-orange" href="/">
-							<i class="icon-chevron-left"></i>
-							<span class="font-semibold">Home</span>
-						</a>
-					</div>
-					<h1>Speak with the Wadden</h1>
-					<p class="font-semibold text-pretty">Here you can ask all your questions. Listen to the stories and wisdom of the Wadden and become part of this age-old tale. Speak into your microphone and let yourself be taken on a journey through time and nature.</p>
-				</div>
+  <article>
+    <section>
+      <div class="relative flex flex-col justify-between h-full container pt-13 pb-4">
+        <div>
+          <div class="flex mb-11 justify-between items-center">
+            <a href="/index.html">
+              <figure>
+                <img src="./assets/img/DVEW_Logo_White.png" alt="Back to home">
+              </figure>
+            </a>
+            <a class="flex items-center gap-2.5 group hover:text-orange" href="/">
+              <i class="icon-chevron-left"></i>
+              <span class="font-semibold">Home</span>
+            </a>
+          </div>
+          <h1>Speak with the Wadden</h1>
+          <p class="font-semibold text-pretty">
+            Here you can ask all your questions. Listen to the stories and wisdom of the Wadden and become part of this age-old tale.
+            Speak into your microphone and let yourself be taken on a journey through time and nature.
+          </p>
+        </div>
 
-				<!-- Real ElevenLabs widget -->
-				<div id="widgetContainer">
-					<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
-					<elevenlabs-convai agent-id="agent_01jykbe73efcma2nva2xmhzqfh"></elevenlabs-convai>
-				</div>
-			</div>
-		</section>
-	</article>
+        <!-- Real ElevenLabs widget -->
+        <div id="widgetContainer">
+          <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
+          <elevenlabs-convai agent-id="agent_01jykbe73efcma2nva2xmhzqfh"></elevenlabs-convai>
+        </div>
+      </div>
+    </section>
+  </article>
 </main>
+
+<!-- Persistent audio elements (background bed + intro voiceover) -->
+<audio id="bgAudio" loop preload="auto" playsinline></audio>
+<audio id="introAudio" preload="auto" playsinline></audio>
+
+<script>
+  /* =========================
+     MEDIA FILES (relative paths)
+     ========================= */
+  const SEASON_TRACKS = [
+    "./assets/audio/Soundscapes - Lente - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Zommer - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Herfst - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Winter - Dijk van een Wijf V2.mp3"
+  ];
+
+  // English Part 2 (introtext) — plays on entering this conversation page
+  const INTRO_PART2_EN = "./assets/audio/Dijk van een Wijf - Introtext EN_1.2.mp3";
+
+  /* =========================
+     HELPERS
+     ========================= */
+  function getSeasonIndex(){
+    const m = new Date().getMonth(); // 0..11
+    if (m>=2 && m<=4) return 0; // Spring
+    if (m>=5 && m<=7) return 1; // Summer
+    if (m>=8 && m<=10) return 2; // Autumn
+    return 3; // Winter
+  }
+
+  // DOM refs
+  const bgEl    = document.getElementById("bgAudio");
+  const introEl = document.getElementById("introAudio");
+
+  // Mix levels
+  const BG_VOLUME = 0.20; // bed level
+  const VO_VOLUME = 1.00; // voiceover level
+
+  // Web Audio graph state
+  let audioCtx, bgGain, voGain, graphReady=false;
+
+  function ensureGraph(){
+    if (graphReady) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    bgGain = audioCtx.createGain();
+    voGain = audioCtx.createGain();
+    bgGain.gain.value = BG_VOLUME;
+    voGain.gain.value = VO_VOLUME;
+    audioCtx.createMediaElementSource(bgEl).connect(bgGain).connect(audioCtx.destination);
+    audioCtx.createMediaElementSource(introEl).connect(voGain).connect(audioCtx.destination);
+    graphReady = true;
+  }
+
+  // Safe play wrappers
+  async function startBed(){
+    ensureGraph();
+    if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
+    bgEl.src = SEASON_TRACKS[getSeasonIndex()];
+    try { await bgEl.play(); } catch(e){}
+  }
+
+  async function playIntroPart2(){
+    ensureGraph();
+    if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
+    try { introEl.pause(); introEl.currentTime = 0; } catch(e){}
+    introEl.src = INTRO_PART2_EN;
+    try { await introEl.play(); } catch(e){}
+  }
+
+  // Gain ramp utility
+  function rampGain(gainNode, target, ms = 400){
+    try{
+      const ctx = gainNode.context, now = ctx.currentTime, dur = Math.max(ms/1000, 0.01);
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+      gainNode.gain.linearRampToValueAtTime(target, now + dur);
+    }catch(e){}
+  }
+
+  // =========================
+  // PAGE FLOW — on load:
+  //   1) Start seasonal background bed
+  //   2) Start English Part 2
+  //   3) DUCK bed right as Part 2 begins, then restore later
+  // =========================
+  async function startConversationAudio(){
+    await startBed();
+
+    // When Part 2 starts, immediately fade the bed down so VO is clear
+    introEl.addEventListener("play", () => {
+      // Fade bed OUT over ~1.2s right as Part 2 begins
+      rampGain(bgGain, 0.0, 1200);
+
+      // After ~8s, fade bed back IN smoothly (tweak if you want longer silence under VO)
+      setTimeout(() => rampGain(bgGain, BG_VOLUME, 1200), 8000);
+    }, { once: true });
+
+    // Ensure bed resumes after VO ends
+    introEl.addEventListener("ended", () => {
+      if (bgEl.paused) bgEl.play().catch(()=>{});
+      rampGain(bgGain, BG_VOLUME, 800);
+    });
+
+    await playIntroPart2();
+  }
+
+  // Try immediately after DOM is ready; if autoplay policy blocks, first tap will resume.
+  window.addEventListener("DOMContentLoaded", () => {
+    startConversationAudio().catch(()=>{});
+  });
+  // Fallback for strict autoplay policies: resume on first user gesture
+  window.addEventListener("click", async () => {
+    if (!audioCtx || audioCtx.state !== "running") {
+      try { ensureGraph(); await audioCtx.resume(); if (bgEl.paused) await bgEl.play(); } catch(e){}
+    }
+  }, { once: true });
+</script>
 </body>
 </html>

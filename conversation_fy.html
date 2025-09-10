@@ -1,45 +1,150 @@
-<!-- conversation_fy.html -->
 <!DOCTYPE html>
 <html lang="fy">
 <head>
-	<meta charset="UTF-8"/>
-	<link rel="stylesheet" href="./src/css/style.css" media="all"/>
-	<title>Dyk fan in Wiif | Petear</title>
-	<meta name="description" content="Stel dyn fragen en harkje nei de ferhalen en wiisheid fan it Wadden. Praat fia dyn mikrofoan en lit dy meinimme op in reis troch tiid en natuer."/>
-	<meta name="robots" content="index,follow"/>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
-	<meta http-equiv="X-UA-Compatible" content="ie=edge">
-	<link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
-	<link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
-	<link rel="shortcut icon" href="favicon.ico" />
-	<link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon/apple-touch-icon.png" />
-	<meta name="apple-mobile-web-app-title" content="Dijk van een Wijf" />
-	<link rel="manifest" href="/assets/favicon/site.webmanifest" />
+  <meta charset="UTF-8"/>
+  <link rel="stylesheet" href="./src/css/style.css" media="all"/>
+  <title>Dyk fan in Wiif | Petear</title>
+  <meta name="description" content="Stel dyn fragen en harkje nei de ferhalen en wiisheid fan it Wadden. Praat fia dyn mikrofoan en lit dy meinimme op in reis troch tiid en natuer."/>
+  <meta name="robots" content="index,follow"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
+  <link rel="shortcut icon" href="favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="Dijk van een Wijf" />
+  <link rel="manifest" href="/assets/favicon/site.webmanifest" />
 </head>
 <body class="page page--conversation">
 <main>
-	<article>
-		<section>
-			<div class="relative flex flex-col justify-between h-full container pt-13 pb-4">
-				<div>
-					<div class="flex mb-11 justify-between items-center">
-						<a href="/index.html">
-							<figure>
-								<img src="./assets/img/DVEW_Logo_White.png" alt="Werom nei thús">
-							</figure>
-						</a>
-						<a class="flex items-center gap-2.5 group transition-all duration-200 ease-linear hover:text-orange" href="/">
-							<i class="icon-chevron-left transition-all duration-200 ease-linear group-hover:mr-1"></i>
-							<span class="font-semibold">Thús</span>
-						</a>
-					</div>
-					<h1>Praat mei it Wadden</h1>
-					<p class="font-semibold text-pretty">Hjir kinst al dyn fragen stelle. Harkje nei de ferhalen en wiisheid fan it Wadden en meitsje sels diel út fan dit âlde ferhaal. Praat yn dyn mikrofoan en lit dy meinimme op in reis troch tiid en natuer.</p>
-				</div>
-				<!-- Fake widget removed -->
-			</div>
-		</section>
-	</article>
+  <article>
+    <section>
+      <div class="relative flex flex-col justify-between h-full container pt-13 pb-4">
+        <div>
+          <div class="flex mb-11 justify-between items-center">
+            <a href="/index.html">
+              <figure>
+                <img src="./assets/img/DVEW_Logo_White.png" alt="Werom nei thús">
+              </figure>
+            </a>
+            <a class="flex items-center gap-2.5 group transition-all duration-200 ease-linear hover:text-orange" href="/">
+              <i class="icon-chevron-left transition-all duration-200 ease-linear group-hover:mr-1"></i>
+              <span class="font-semibold">Thús</span>
+            </a>
+          </div>
+          <h1>Praat mei it Wadden</h1>
+          <p class="font-semibold text-pretty">
+            Hjir kinst al dyn fragen stelle. Harkje nei de ferhalen en wiisheid fan it Wadden en meitsje sels diel út fan dit âlde ferhaal.
+            Praat yn dyn mikrofoan en lit dy meinimme op in reis troch tiid en natuer.
+          </p>
+        </div>
+        <!-- Real ElevenLabs widget -->
+        <div id="widgetContainer">
+          <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
+          <elevenlabs-convai agent-id="agent_01jxj6kx8cezesfxrsdxcjxx30"></elevenlabs-convai>
+        </div>
+      </div>
+    </section>
+  </article>
 </main>
+
+<!-- Persistent audio elements -->
+<audio id="bgAudio" loop preload="auto" playsinline></audio>
+<audio id="introAudio" preload="auto" playsinline></audio>
+
+<script>
+  /* =========================
+     MEDIA FILES
+     ========================= */
+  const SEASON_TRACKS = [
+    "./assets/audio/Soundscapes - Lente - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Zommer - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Herfst - Dijk van een Wijf V2.mp3",
+    "./assets/audio/Soundscapes - Winter - Dijk van een Wijf V2.mp3"
+  ];
+
+  // Frisian Part 2 intro text
+  const INTRO_PART2_FY = "./assets/audio/Dijk van een Wijf - Introtext FR_1.2.mp3";
+
+  function getSeasonIndex(){
+    const m = new Date().getMonth();
+    if (m>=2 && m<=4) return 0; // spring
+    if (m>=5 && m<=7) return 1; // summer
+    if (m>=8 && m<=10) return 2; // autumn
+    return 3; // winter
+  }
+
+  const bgEl    = document.getElementById("bgAudio");
+  const introEl = document.getElementById("introAudio");
+
+  const BG_VOLUME = 0.20;
+  const VO_VOLUME = 1.00;
+
+  let audioCtx, bgGain, voGain, graphReady = false;
+
+  function ensureGraph(){
+    if (graphReady) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    bgGain = audioCtx.createGain();
+    voGain = audioCtx.createGain();
+    bgGain.gain.value = BG_VOLUME;
+    voGain.gain.value = VO_VOLUME;
+    audioCtx.createMediaElementSource(bgEl).connect(bgGain).connect(audioCtx.destination);
+    audioCtx.createMediaElementSource(introEl).connect(voGain).connect(audioCtx.destination);
+    graphReady = true;
+  }
+
+  async function startBed(){
+    ensureGraph();
+    if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
+    bgEl.src = SEASON_TRACKS[getSeasonIndex()];
+    try { await bgEl.play(); } catch(e){}
+  }
+
+  async function playIntroPart2(){
+    ensureGraph();
+    if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
+    try { introEl.pause(); introEl.currentTime = 0; } catch(e){}
+    introEl.src = INTRO_PART2_FY;
+    try { await introEl.play(); } catch(e){}
+  }
+
+  function rampGain(gainNode, target, ms = 400){
+    try {
+      const ctx = gainNode.context, now = ctx.currentTime, dur = Math.max(ms/1000, 0.01);
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+      gainNode.gain.linearRampToValueAtTime(target, now + dur);
+    } catch(e){}
+  }
+
+  async function startConversationAudio(){
+    await startBed();
+
+    introEl.addEventListener("play", () => {
+      // Duck bed at start
+      rampGain(bgGain, 0.0, 1200);
+      // Restore after ~8s
+      setTimeout(() => rampGain(bgGain, BG_VOLUME, 1200), 8000);
+    }, { once: true });
+
+    introEl.addEventListener("ended", () => {
+      if (bgEl.paused) bgEl.play().catch(()=>{});
+      rampGain(bgGain, BG_VOLUME, 800);
+    });
+
+    await playIntroPart2();
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    startConversationAudio().catch(()=>{});
+  });
+
+  window.addEventListener("click", async () => {
+    if (!audioCtx || audioCtx.state !== "running") {
+      try { ensureGraph(); await audioCtx.resume(); if (bgEl.paused) await bgEl.play(); } catch(e){}
+    }
+  }, { once: true });
+</script>
 </body>
 </html>
