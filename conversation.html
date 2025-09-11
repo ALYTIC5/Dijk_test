@@ -1,164 +1,43 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8"/>
-  <link rel="stylesheet" href="./src/css/style.css" media="all"/>
-  <title>Dijk van een Wijf | Verhalen en wijsheden over natuur en tijd</title>
-  <meta name="description" content="Ga in gesprek met het Wadden en ontdek eeuwenoude verhalen, wijsheden over de natuur en inspirerende inzichten. Stel je vragen en laat je meenemen op een onvergetelijke reis door de tijd en natuur."/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
-  <link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
+	<meta charset="UTF-8"/>
+	<link rel="stylesheet" href="./src/css/style.css" media="all"/>
+	<title>Dijk van een Wijf | Verhalen en wijsheden over natuur en tijd</title>
+	<meta name="description" content="Ga in gesprek met het Wadden en ontdek eeuwenoude verhalen, wijsheden over de natuur en inspirerende inzichten. Stel je vragen en laat je meenemen op een onvergetelijke reis door de tijd en natuur."/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
+	<link rel="icon" type="image/png" href="/assets/favicon/favicon-96x96.png" sizes="96x96" />
+	<link rel="icon" type="image/svg+xml" href="/assets/favicon/favicon.svg" />
 </head>
 <body class="page page--conversation">
 <main>
-  <article>
-    <section>
-      <div class="relative flex flex-col justify-between h-full container pt-13 pb-4">
-        <div>
-          <div class="flex mb-11 justify-between items-center">
-            <a href="/index.html">
-              <figure>
-                <img src="./assets/img/DVEW_Logo_White.png" alt="Ga naar de homepagina">
-              </figure>
-            </a>
-            <a class="flex items-center gap-2.5 group transition-all duration-200 ease-linear hover:text-orange" href="/">
-              <i class="icon-chevron-left"></i>
-              <span class="font-semibold">Home</span>
-            </a>
-          </div>
-          <h1>In gesprek met het Wadden</h1>
-          <p class="font-semibold text-pretty">
-            Hier kun je al jouw vragen stellen. Luister naar de verhalen en wijsheden van het Wadden en maak zelf deel uit van dit eeuwenoude verhaal.
-            Spreek in je microfoon en laat je meenemen op een reis door de tijd en de natuur.
-          </p>
-        </div>
+	<article>
+		<section>
+			<div class="relative flex flex-col justify-between h-full container pt-13 pb-4">
+				<div>
+					<div class="flex mb-11 justify-between items-center">
+						<a href="/index.html">
+							<figure>
+								<img src="./assets/img/DVEW_Logo_White.png" alt="Ga naar de homepagina">
+							</figure>
+						</a>
+						<a class="flex items-center gap-2.5 group transition-all duration-200 ease-linear hover:text-orange" href="/">
+							<i class="icon-chevron-left"></i>
+							<span class="font-semibold">Home</span>
+						</a>
+					</div>
+					<h1>In gesprek met het Wadden</h1>
+					<p class="font-semibold text-pretty">Hier kun je al jouw vragen stellen. Luister naar de verhalen en wijsheden van het Wadden en maak zelf deel uit van dit eeuwenoude verhaal. Spreek in je microfoon en laat je meenemen op een reis door de tijd en de natuur.</p>
+				</div>
 
-        <!-- Real ElevenLabs widget -->
-        <div id="widgetContainer">
-          <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
-          <elevenlabs-convai agent-id="agent_01jxj6kx8cezesfxrsdxcjxx30"></elevenlabs-convai>
-        </div>
-      </div>
-    </section>
-  </article>
+				<!-- Real ElevenLabs widget -->
+				<div id="widgetContainer">
+					<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async></script>
+					<elevenlabs-convai agent-id="agent_01jxj6kx8cezesfxrsdxcjxx30"></elevenlabs-convai>
+				</div>
+			</div>
+		</section>
+	</article>
 </main>
-
-<!-- Persistent audio elements (background bed + intro voiceover) -->
-<audio id="bgAudio" loop preload="auto" playsinline></audio>
-<audio id="introAudio" preload="auto" playsinline></audio>
-
-<script>
-  /* =========================
-     MEDIA FILES (relative paths)
-     ========================= */
-  const SEASON_TRACKS = [
-    "./assets/audio/Soundscapes - Lente - Dijk van een Wijf V2.mp3",
-    "./assets/audio/Soundscapes - Zommer - Dijk van een Wijf V2.mp3",
-    "./assets/audio/Soundscapes - Herfst - Dijk van een Wijf V2.mp3",
-    "./assets/audio/Soundscapes - Winter - Dijk van een Wijf V2.mp3"
-  ];
-
-  // Dutch Part 2 (introtext) — plays on entering conversation page
-  const INTRO_PART2_NL = "./assets/audio/Dijk van een Wijf - Introtext NL_1.2.mp3";
-
-  /* =========================
-     HELPERS
-     ========================= */
-  function getSeasonIndex(){
-    const m = new Date().getMonth(); // 0..11
-    if (m>=2 && m<=4) return 0; // Lente
-    if (m>=5 && m<=7) return 1; // Zomer
-    if (m>=8 && m<=10) return 2; // Herfst
-    return 3; // Winter
-  }
-
-  // DOM refs
-  const bgEl    = document.getElementById("bgAudio");
-  const introEl = document.getElementById("introAudio");
-
-  // Mix levels
-  const BG_VOLUME = 0.20; // bed level
-  const VO_VOLUME = 1.00; // voiceover level
-
-  // Web Audio graph state
-  let audioCtx, bgGain, voGain, graphReady=false;
-
-  function ensureGraph(){
-    if (graphReady) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    bgGain = audioCtx.createGain();
-    voGain = audioCtx.createGain();
-    bgGain.gain.value = BG_VOLUME;
-    voGain.gain.value = VO_VOLUME;
-    audioCtx.createMediaElementSource(bgEl).connect(bgGain).connect(audioCtx.destination);
-    audioCtx.createMediaElementSource(introEl).connect(voGain).connect(audioCtx.destination);
-    graphReady = true;
-  }
-
-  // Safe play wrappers
-  async function startBed(){
-    ensureGraph();
-    if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
-    bgEl.src = SEASON_TRACKS[getSeasonIndex()];
-    try { await bgEl.play(); } catch(e){}
-  }
-
-  async function playIntroPart2(){
-    ensureGraph();
-    if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch(e){} }
-    try { introEl.pause(); introEl.currentTime = 0; } catch(e){}
-    introEl.src = INTRO_PART2_NL;
-    try { await introEl.play(); } catch(e){}
-  }
-
-  // Gain ramp utility
-  function rampGain(gainNode, target, ms = 400){
-    try{
-      const ctx = gainNode.context, now = ctx.currentTime, dur = Math.max(ms/1000, 0.01);
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(target, now + dur);
-    }catch(e){}
-  }
-
-  // =========================
-  // PAGE FLOW — on load:
-  //   1) Start seasonal background bed
-  //   2) Start Dutch Part 2
-  //   3) DUCK bed right as Part 2 begins, then restore later
-  // =========================
-  async function startConversationAudio(){
-    await startBed();
-
-    // When Part 2 starts, immediately fade the bed down so VO is clear
-    introEl.addEventListener("play", () => {
-      // Fade bed OUT over ~1.2s right as Part 2 begins
-      rampGain(bgGain, 0.0, 1200);
-
-      // After ~8s, fade bed back IN smoothly (tweak if you want longer silence under VO)
-      setTimeout(() => rampGain(bgGain, BG_VOLUME, 1200), 8000);
-    }, { once: true });
-
-    // If for any reason bed got paused by the platform, ensure it keeps going
-    introEl.addEventListener("ended", () => {
-      if (bgEl.paused) bgEl.play().catch(()=>{});
-      // Make sure bed is restored after VO
-      rampGain(bgGain, BG_VOLUME, 800);
-    });
-
-    await playIntroPart2();
-  }
-
-  // Try immediately after DOM is ready; if autoplay policy blocks, first tap will resume.
-  window.addEventListener("DOMContentLoaded", () => {
-    startConversationAudio().catch(()=>{});
-  });
-  // Fallback for strict autoplay policies: resume on first user gesture
-  window.addEventListener("click", async () => {
-    if (!audioCtx || audioCtx.state !== "running") {
-      try { ensureGraph(); await audioCtx.resume(); if (bgEl.paused) await bgEl.play(); } catch(e){}
-    }
-  }, { once: true });
-</script>
 </body>
 </html>
